@@ -1,0 +1,23 @@
+{
+    "private": true,
+    "name": "screen-connect",
+    "version": "0.1.0",
+    "description": "Screen connect app",
+    "author": "plusminushalf <contact@plusminushalf.com>",
+    "license": "MIT",
+    "workspaces": {
+        "packages": [
+            "packages/*"
+        ],
+        "nohoist": [
+            "**eslint**"
+        ]
+    },
+    "scripts": {
+        "backend": "yarn workspace @screen-connect/backend",
+        "frontend": "yarn workspace @screen-connect/frontend"
+    },
+    "dependencies": {
+        "lerna": "^6.6.2"
+    }
+}
