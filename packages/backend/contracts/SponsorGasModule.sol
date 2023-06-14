@@ -7,38 +7,12 @@ import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import '@gnosis.pm/safe-contracts/contracts/common/Enum.sol';
 
 interface GnosisSafe {
-    function nonce() external view returns (uint256);
-
-    /// @dev Allows a Module to execute a Safe transaction without any further confirmations.
-    /// @param to Destination address of module transaction.
-    /// @param value Ether value of module transaction.
-    /// @param data Data payload of module transaction.
-    /// @param operation Operation type of module transaction.
     function execTransactionFromModule(
         address to,
         uint256 value,
         bytes calldata data,
         Enum.Operation operation
     ) external returns (bool success);
-
-    function checkSignatures(
-        bytes32 dataHash,
-        bytes memory data,
-        bytes memory signatures
-    ) external view;
-
-    function encodeTransactionData(
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address refundReceiver,
-        uint256 _nonce
-    ) external view returns (bytes memory);
 }
 
 struct Transaction {
