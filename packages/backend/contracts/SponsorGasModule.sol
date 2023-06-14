@@ -57,23 +57,41 @@ struct Transaction {
 contract SponsorGasModule is GelatoRelayContext {
     using Address for address payable;
 
+    address public constant NATIVE_TOKEN =
+        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     function execTransaction(
         GnosisSafe safe,
         Transaction memory trxn
     ) public payable virtual onlyGelatoRelay returns (bool success) {
-        // FUTURE for ERC20 fees
-        // bytes memory data = abi.encodeWithSelector(
-        //     IERC20(_getFeeToken()).transfer.selector,
-        //     _getFeeCollector(),
-        //     _getFee()
-        // );
+        if (_getFeeToken() == NATIVE_TOKEN) {
+            require(
+                safe.execTransactionFromModule(
+                    _getFeeCollector(),
+                    _getFee(),
+                    '',
+                    Enum.Operation.Call
+                ),
+                'Could not execute Ether transfer to gelato fee collector'
+            );
+        } else {
+            // FUTURE for ERC20 fees
+            bytes memory data = abi.encodeWithSelector(
+                IERC20(_getFeeToken()).transfer.selector,
+                _getFeeCollector(),
+                _getFee()
+            );
 
-        // safe.execTransactionFromModule(
-        //     _getFeeToken(),
-        //     0,
-        //     data,
-        //     Enum.Operation.Call
-        // );
+            require(
+                safe.execTransactionFromModule(
+                    _getFeeToken(),
+                    0,
+                    data,
+                    Enum.Operation.Call
+                ),
+                'Could not execute ERC20 transfer to gelato fee collector'
+            );
+        }
 
         success = safe.execTransactionFromModule(
             address(safe),
@@ -95,15 +113,5 @@ contract SponsorGasModule is GelatoRelayContext {
         );
 
         require(success, 'Could not execute Safe transaction');
-
-        require(
-            safe.execTransactionFromModule(
-                _getFeeCollector(),
-                _getFee(),
-                '',
-                Enum.Operation.Call
-            ),
-            'Could not execute Ether transfer to gelato fee collector'
-        );
     }
 }
