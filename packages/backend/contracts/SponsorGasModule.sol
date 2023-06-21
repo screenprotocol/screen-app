@@ -38,6 +38,7 @@ contract SponsorGasModule is GelatoRelayContext {
         GnosisSafe safe,
         Transaction memory trxn
     ) public payable virtual onlyGelatoRelay returns (bool success) {
+        require(trxn.refundReceiver == address(0), 'refundReceiver not 0');
         if (_getFeeToken() == NATIVE_TOKEN) {
             require(
                 safe.execTransactionFromModule(
