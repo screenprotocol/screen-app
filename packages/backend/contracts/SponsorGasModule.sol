@@ -31,48 +31,68 @@ struct Transaction {
 contract SponsorGasModule is GelatoRelayContext {
     using Address for address payable;
 
+    event GasTransferred(
+        address indexed _feeCollector,
+        uint256 _fee,
+        address indexed _token
+    );
+
+    bytes4 public constant EXEC_TRANSACTION_SIG = 0x6a761202;
     address public constant NATIVE_TOKEN =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    error NonZeroRefundReceiver(address refundReceiver);
+    error NativeTokenTransferFailed(address feeCollector, uint256 fee);
+    error ERC20TransferFailed(address token, address feeCollector, uint256 fee);
+    error ExecutionFailed(address safe);
 
     function execTransaction(
         GnosisSafe safe,
         Transaction memory trxn
     ) public payable virtual onlyGelatoRelay returns (bool success) {
-        require(trxn.refundReceiver == address(0), 'refundReceiver not 0');
+        if (trxn.refundReceiver != address(0)) {
+            revert NonZeroRefundReceiver(trxn.refundReceiver);
+        }
+
         if (_getFeeToken() == NATIVE_TOKEN) {
-            require(
-                safe.execTransactionFromModule(
-                    _getFeeCollector(),
-                    _getFee(),
-                    '',
-                    Enum.Operation.Call
-                ),
-                'Could not execute Ether transfer to gelato fee collector'
-            );
-        } else {
-            // FUTURE for ERC20 fees
-            bytes memory data = abi.encodeWithSelector(
-                IERC20(_getFeeToken()).transfer.selector,
+            success = safe.execTransactionFromModule(
                 _getFeeCollector(),
-                _getFee()
+                _getFee(),
+                '',
+                Enum.Operation.Call
             );
 
-            require(
-                safe.execTransactionFromModule(
-                    _getFeeToken(),
-                    0,
-                    data,
-                    Enum.Operation.Call
+            if (!success) {
+                revert NativeTokenTransferFailed(_getFeeCollector(), _getFee());
+            }
+        } else {
+            // FUTURE for ERC20 fees
+            success = safe.execTransactionFromModule(
+                _getFeeToken(),
+                0,
+                abi.encodeWithSelector(
+                    IERC20(_getFeeToken()).transfer.selector,
+                    _getFeeCollector(),
+                    _getFee()
                 ),
-                'Could not execute ERC20 transfer to gelato fee collector'
+                Enum.Operation.Call
             );
+            if (!success) {
+                revert ERC20TransferFailed(
+                    _getFeeToken(),
+                    _getFeeCollector(),
+                    _getFee()
+                );
+            }
         }
+
+        emit GasTransferred(_getFeeCollector(), _getFee(), _getFeeToken());
 
         success = safe.execTransactionFromModule(
             address(safe),
             0,
-            abi.encodeWithSignature(
-                'execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes)',
+            abi.encodeWithSelector(
+                EXEC_TRANSACTION_SIG,
                 trxn.to,
                 trxn.value,
                 trxn.data,
@@ -87,6 +107,8 @@ contract SponsorGasModule is GelatoRelayContext {
             Enum.Operation.Call
         );
 
-        require(success, 'Could not execute Safe transaction');
+        if (!success) {
+            revert ExecutionFailed(address(safe));
+        }
     }
 }
