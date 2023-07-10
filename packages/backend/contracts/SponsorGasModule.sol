@@ -64,8 +64,8 @@ contract SponsorGasModule is GelatoRelayContext {
     mapping(address => mapping(address => uint256)) public approvedGasLimit;
 
     function setApprovedGasLimit(address token, uint256 gasLimit) external {
-        bool enabled = GnosisSafe(msg.sender).isModuleEnabled(address(this));
-        if (!enabled) revert ModuleNotEnabled(msg.sender);
+        if (!GnosisSafe(msg.sender).isModuleEnabled(address(this)))
+            revert ModuleNotEnabled(msg.sender);
         approvedGasLimit[msg.sender][token] = gasLimit;
         emit GasLimitApproved(msg.sender, token, gasLimit);
     }
