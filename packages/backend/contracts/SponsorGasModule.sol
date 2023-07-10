@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.12;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {GelatoRelayContext} from '@gelatonetwork/relay-context/contracts/GelatoRelayContext.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import '@gnosis.pm/safe-contracts/contracts/common/Enum.sol';
@@ -44,6 +43,7 @@ contract SponsorGasModule is GelatoRelayContext {
         uint256 _gasLimit
     );
 
+    bytes4 public constant ERC20_TRANSFER_SIG = 0xa9059cbb;
     bytes4 public constant EXEC_TRANSACTION_SIG = 0x6a761202;
     address public constant NATIVE_TOKEN =
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -99,7 +99,7 @@ contract SponsorGasModule is GelatoRelayContext {
                     _getFeeToken(),
                     0,
                     abi.encodeWithSelector(
-                        IERC20(_getFeeToken()).transfer.selector,
+                        ERC20_TRANSFER_SIG,
                         _getFeeCollector(),
                         _getFee()
                     ),
