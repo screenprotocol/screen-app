@@ -35,7 +35,17 @@ function getNetwork(name: string): {
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
-        compilers: [{ version: '0.8.12', settings: {} }],
+        compilers: [
+            {
+                version: '0.8.12',
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 1000,
+                    },
+                },
+            },
+        ],
     },
     typechain: {
         outDir: 'src/typechain-types',

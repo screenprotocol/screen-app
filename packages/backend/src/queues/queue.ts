@@ -9,8 +9,8 @@ export type QueueOptions = {
 }
 
 const defaultOptions = {
-    retryIn: 30, // in seconds
-    pushBackInQueue: 10, // in seconds
+    retryIn: 5, // in seconds
+    pushBackInQueue: 5, // in seconds
     retries: 10000,
 }
 

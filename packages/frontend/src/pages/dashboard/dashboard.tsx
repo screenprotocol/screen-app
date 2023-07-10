@@ -336,6 +336,7 @@ const Dashboard = () => {
                 message: message || 'something went wrong',
                 notificationSeverity: 'error',
             })
+            setLoader(false)
             return
         }
         showNotification({

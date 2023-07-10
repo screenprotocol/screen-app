@@ -13,6 +13,8 @@ interface GnosisSafe {
         bytes calldata data,
         Enum.Operation operation
     ) external returns (bool success);
+
+    function isModuleEnabled(address module) external view returns (bool);
 }
 
 struct Transaction {
@@ -36,6 +38,11 @@ contract SponsorGasModule is GelatoRelayContext {
         uint256 _fee,
         address indexed _token
     );
+    event GasLimitApproved(
+        address indexed _safe,
+        address indexed _token,
+        uint256 _gasLimit
+    );
 
     bytes4 public constant EXEC_TRANSACTION_SIG = 0x6a761202;
     address public constant NATIVE_TOKEN =
@@ -45,39 +52,60 @@ contract SponsorGasModule is GelatoRelayContext {
     error NativeTokenTransferFailed(address feeCollector, uint256 fee);
     error ERC20TransferFailed(address token, address feeCollector, uint256 fee);
     error ExecutionFailed(address safe);
+    error ModuleNotEnabled(address safe);
+    error NoGasLimitSet(address safe, address token);
+    error NotEnoughGasApproved(
+        address safe,
+        address token,
+        uint256 gasLimit,
+        uint256 gasRequired
+    );
 
-    function execTransaction(
-        GnosisSafe safe,
-        Transaction memory trxn
-    ) public payable virtual onlyGelatoRelay returns (bool success) {
-        if (trxn.refundReceiver != address(0)) {
-            revert NonZeroRefundReceiver(trxn.refundReceiver);
-        }
+    mapping(address => mapping(address => uint256)) public approvedGasLimit;
 
-        if (_getFeeToken() == NATIVE_TOKEN) {
-            success = safe.execTransactionFromModule(
-                _getFeeCollector(),
-                _getFee(),
-                '',
-                Enum.Operation.Call
+    function setApprovedGasLimit(address token, uint256 gasLimit) external {
+        bool enabled = GnosisSafe(msg.sender).isModuleEnabled(address(this));
+        if (!enabled) revert ModuleNotEnabled(msg.sender);
+        approvedGasLimit[msg.sender][token] = gasLimit;
+        emit GasLimitApproved(msg.sender, token, gasLimit);
+    }
+
+    function payRelayerFee(GnosisSafe safe) internal {
+        uint256 gasLimit = approvedGasLimit[address(safe)][_getFeeToken()];
+        if (gasLimit == 0) revert NoGasLimitSet(address(safe), _getFeeToken());
+        if (gasLimit < _getFee())
+            revert NotEnoughGasApproved(
+                address(safe),
+                _getFeeToken(),
+                gasLimit,
+                _getFee()
             );
 
-            if (!success) {
+        if (_getFeeToken() == NATIVE_TOKEN) {
+            if (
+                !safe.execTransactionFromModule(
+                    _getFeeCollector(),
+                    _getFee(),
+                    '',
+                    Enum.Operation.Call
+                )
+            ) {
                 revert NativeTokenTransferFailed(_getFeeCollector(), _getFee());
             }
         } else {
             // FUTURE for ERC20 fees
-            success = safe.execTransactionFromModule(
-                _getFeeToken(),
-                0,
-                abi.encodeWithSelector(
-                    IERC20(_getFeeToken()).transfer.selector,
-                    _getFeeCollector(),
-                    _getFee()
-                ),
-                Enum.Operation.Call
-            );
-            if (!success) {
+            if (
+                !safe.execTransactionFromModule(
+                    _getFeeToken(),
+                    0,
+                    abi.encodeWithSelector(
+                        IERC20(_getFeeToken()).transfer.selector,
+                        _getFeeCollector(),
+                        _getFee()
+                    ),
+                    Enum.Operation.Call
+                )
+            ) {
                 revert ERC20TransferFailed(
                     _getFeeToken(),
                     _getFeeCollector(),
@@ -87,6 +115,17 @@ contract SponsorGasModule is GelatoRelayContext {
         }
 
         emit GasTransferred(_getFeeCollector(), _getFee(), _getFeeToken());
+    }
+
+    function execTransaction(
+        GnosisSafe safe,
+        Transaction memory trxn
+    ) public payable virtual onlyGelatoRelay returns (bool success) {
+        if (trxn.refundReceiver != address(0)) {
+            revert NonZeroRefundReceiver(trxn.refundReceiver);
+        }
+
+        payRelayerFee(safe);
 
         success = safe.execTransactionFromModule(
             address(safe),

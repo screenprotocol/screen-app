@@ -12,6 +12,9 @@ import { useAPis } from '../hooks/apis'
 import { createSafe, getSafe } from '../apis'
 import { ethers } from 'ethers'
 import GnosisSafeBuildInfo from '@gnosis.pm/safe-contracts/build/artifacts/contracts/GnosisSafe.sol/GnosisSafe.json'
+import SponsorGasModule from './SponsorGasModule.json'
+
+const NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
 
 function getProviderUrl(chainId: number): string {
     let name = ''
@@ -148,6 +151,14 @@ const SafeConnectorProvider: React.FC<SafeConnectorProviderProps> = ({
 
     const enableSafe = useCallback(async () => {
         setLoaderCallback(true)
+        if (!process.env.REACT_APP_SPONSOR_GAS_MODULE_ADDRESS)
+            throw new Error('No sponsor gas module address provided')
+
+        const SponsorGasModuleContract = new ethers.Contract(
+            process.env.REACT_APP_SPONSOR_GAS_MODULE_ADDRESS,
+            SponsorGasModule.abi,
+        )
+
         const txs = await sdk.txs
             .send({
                 txs: [
@@ -159,15 +170,23 @@ const SafeConnectorProvider: React.FC<SafeConnectorProviderProps> = ({
                             [process.env.REACT_APP_SPONSOR_GAS_MODULE_ADDRESS],
                         ),
                     },
+                    {
+                        to: process.env.REACT_APP_SPONSOR_GAS_MODULE_ADDRESS,
+                        value: '0',
+                        data: SponsorGasModuleContract.interface.encodeFunctionData(
+                            'setApprovedGasLimit',
+                            [NATIVE_TOKEN, ethers.utils.parseEther('1')],
+                        ),
+                    },
                 ],
             })
             .catch((e) => {
-                console.error(e)
+                console.log(e)
                 setCompleteState({
                     error: true,
                     message: "Transaction rejected, couldn't enable your Safe",
                 })
-
+                setLoaderCallback(false)
                 return { safeTxHash: '' }
             })
         if (!txs.safeTxHash) return

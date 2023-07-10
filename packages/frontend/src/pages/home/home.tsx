@@ -56,6 +56,7 @@ const Home: React.FC = () => {
                 message: message || 'something went wrong',
                 notificationSeverity: 'error',
             })
+            setLoader(false)
             return
         }
         showNotification({
