@@ -122,8 +122,6 @@ contract SponsorGasModule is GelatoRelayContext {
             revert NonZeroRefundReceiver(trxn.refundReceiver);
         }
 
-        payRelayerFee(safe);
-
         success = safe.execTransactionFromModule(
             address(safe),
             0,
@@ -146,5 +144,7 @@ contract SponsorGasModule is GelatoRelayContext {
         if (!success) {
             revert ExecutionFailed(address(safe));
         }
+
+        payRelayerFee(safe);
     }
 }
