@@ -3,7 +3,6 @@ pragma solidity ^0.8.12;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {GelatoRelayContext} from '@gelatonetwork/relay-context/contracts/GelatoRelayContext.sol';
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import '@gnosis.pm/safe-contracts/contracts/common/Enum.sol';
 
 interface GnosisSafe {
@@ -31,8 +30,6 @@ struct Transaction {
 }
 
 contract SponsorGasModule is GelatoRelayContext {
-    using Address for address payable;
-
     event GasTransferred(
         address indexed _feeCollector,
         uint256 _fee,
